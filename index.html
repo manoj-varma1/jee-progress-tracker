@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JEE Progress Tracker</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:Arial, Helvetica, sans-serif;
+    }
+
+    body{
+      background:#0f172a;
+      color:white;
+      padding:20px;
+    }
+
+    h1{
+      text-align:center;
+      margin-bottom:20px;
+      color:#38bdf8;
+    }
+
+    .container{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+      gap:20px;
+    }
+
+    .card{
+      background:#1e293b;
+      padding:20px;
+      border-radius:16px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .card h2{
+      margin-bottom:15px;
+      color:#facc15;
+    }
+
+    input, button, textarea{
+      width:100%;
+      padding:10px;
+      margin-top:10px;
+      border:none;
+      border-radius:8px;
+      font-size:15px;
+    }
+
+    input, textarea{
+      background:#334155;
+      color:white;
+    }
+
+    button{
+      background:#38bdf8;
+      color:black;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    button:hover{
+      background:#0ea5e9;
+    }
+
+    ul{
+      margin-top:15px;
+      list-style:none;
+    }
+
+    li{
+      background:#334155;
+      padding:10px;
+      border-radius:8px;
+      margin-bottom:10px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+      margin-top:15px;
+    }
+
+    .stat-box{
+      background:#334155;
+      padding:15px;
+      border-radius:10px;
+      text-align:center;
+    }
+
+    canvas{
+      background:white;
+      border-radius:10px;
+      padding:10px;
+    }
+
+    .calendar{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:5px;
+      margin-top:15px;
+    }
+
+    .day{
+      height:35px;
+      border-radius:6px;
+      background:#334155;
+    }
+
+    .active{
+      background:#22c55e;
+    }
+
+    @media(max-width:600px){
+      .stats{
+        grid-template-columns:1fr;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>JEE Daily Progress Tracker</h1>
+
+  <div class="container">
+
+    <!-- Daily Study -->
+    <div class="card">
+      <h2>Daily Study Log</h2>
+
+      <input type="date" id="date">
+
+      <input type="number" id="hours" placeholder="Study Hours">
+
+      <input type="number" id="physics" placeholder="Physics Problems Solved">
+
+      <input type="number" id="chemistry" placeholder="Chemistry Problems Solved">
+
+      <input type="number" id="maths" placeholder="Maths Problems Solved">
+
+      <input type="number" id="score" placeholder="Test Score (%)">
+
+      <button onclick="saveProgress()">Save Progress</button>
+
+      <div class="stats">
+        <div class="stat-box">
+          <h3 id="totalHours">0</h3>
+          <p>Total Hours</p>
+        </div>
+
+        <div class="stat-box">
+          <h3 id="streak">0</h3>
+          <p>Study Streak</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topics -->
+    <div class="card">
+      <h2>Topics To Cover</h2>
+
+      <textarea id="topicName" placeholder="Topic Name"></textarea>
+
+      <input type="number" id="deadline" placeholder="Complete within (days)">
+
+      <button onclick="addTopic()">Add Topic</button>
+
+      <ul id="topicList"></ul>
+    </div>
+
+    <!-- Study Hours Chart -->
+    <div class="card">
+      <h2>Study Hours Progress</h2>
+      <canvas id="hoursChart"></canvas>
+    </div>
+
+    <!-- Test Score Chart -->
+    <div class="card">
+      <h2>Test Score Analysis</h2>
+      <canvas id="scoreChart"></canvas>
+    </div>
+
+    <!-- Problem Solving -->
+    <div class="card">
+      <h2>Problems Solved</h2>
+      <canvas id="problemChart"></canvas>
+    </div>
+
+    <!-- Streak Calendar -->
+    <div class="card">
+      <h2>Study Streak Calendar</h2>
+      <div class="calendar" id="calendar"></div>
+    </div>
+
+  </div>
+
+<script>
+
+let studyData = JSON.parse(localStorage.getItem("studyData")) || [];
+let topics = JSON.parse(localStorage.getItem("topics")) || [];
+
+function saveProgress(){
+
+  const date = document.getElementById("date").value;
+  const hours = Number(document.getElementById("hours").value);
+  const physics = Number(document.getElementById("physics").value);
+  const chemistry = Number(document.getElementById("chemistry").value);
+  const maths = Number(document.getElementById("maths").value);
+  const score = Number(document.getElementById("score").value);
+
+  if(!date || !hours){
+    alert("Please enter date and study hours");
+    return;
+  }
+
+  studyData.push({
+    date,
+    hours,
+    physics,
+    chemistry,
+    maths,
+    score
+  });
+
+  localStorage.setItem("studyData", JSON.stringify(studyData));
+
+  updateUI();
+}
+
+function addTopic(){
+
+  const topic = document.getElementById("topicName").value;
+  const deadline = document.getElementById("deadline").value;
+
+  if(!topic || !deadline){
+    alert("Please enter topic and deadline");
+    return;
+  }
+
+  topics.push({
+    topic,
+    deadline
+  });
+
+  localStorage.setItem("topics", JSON.stringify(topics));
+
+  renderTopics();
+}
+
+function renderTopics(){
+
+  const topicList = document.getElementById("topicList");
+
+  topicList.innerHTML = "";
+
+  topics.forEach((t,index)=>{
+
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <strong>${t.topic}</strong><br>
+      Complete within ${t.deadline} days
+    `;
+
+    topicList.appendChild(li);
+  });
+}
+
+function calculateTotalHours(){
+
+  let total = 0;
+
+  studyData.forEach(d=>{
+    total += d.hours;
+  });
+
+  document.getElementById("totalHours").innerText = total;
+}
+
+function calculateStreak(){
+
+  document.getElementById("streak").innerText = studyData.length;
+}
+
+function renderCalendar(){
+
+  const calendar = document.getElementById("calendar");
+
+  calendar.innerHTML = "";
+
+  for(let i=0;i<35;i++){
+
+    const day = document.createElement("div");
+
+    day.classList.add("day");
+
+    if(i < studyData.length){
+      day.classList.add("active");
+    }
+
+    calendar.appendChild(day);
+  }
+}
+
+function renderCharts(){
+
+  const labels = studyData.map(d=>d.date);
+
+  // Study Hours Chart
+  new Chart(document.getElementById("hoursChart"),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Study Hours',
+        data:studyData.map(d=>d.hours),
+        borderWidth:2
+      }]
+    }
+  });
+
+  // Test Score Chart
+  new Chart(document.getElementById("scoreChart"),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Test Score',
+        data:studyData.map(d=>d.score),
+        borderWidth:1
+      }]
+    }
+  });
+
+  // Problems Solved
+  new Chart(document.getElementById("problemChart"),{
+    type:'radar',
+    data:{
+      labels:['Physics','Chemistry','Maths'],
+      datasets:[{
+        label:'Problems Solved',
+        data:[
+          totalProblems('physics'),
+          totalProblems('chemistry'),
+          totalProblems('maths')
+        ]
+      }]
+    }
+  });
+
+}
+
+function totalProblems(subject){
+
+  let total = 0;
+
+  studyData.forEach(d=>{
+    total += d[subject];
+  });
+
+  return total;
+}
+
+function updateUI(){
+
+  calculateTotalHours();
+  calculateStreak();
+  renderTopics();
+  renderCalendar();
+  renderCharts();
+}
+
+updateUI();
+
+</script>
+
+</body>
+</html>
